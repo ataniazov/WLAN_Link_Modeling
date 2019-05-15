@@ -2,7 +2,7 @@
 % WLAN Link Modeling and performance analysis for different channel       %
 % conditions                                                              %
 %                                                                         %
-% Author: Ata Niyazov (185112038)                                         %
+% Author: Ata Niyazov (185112038), Fehime Yiğit (185112039)               %
 %                                                                         %
 % Work address: Kocaeli University                                        %
 % Website: http://bilgisayar.kocaeli.edu.tr/                              %
@@ -14,16 +14,16 @@
 
 %------------------------------- BEGIN CODE -------------------------------
 
-%% WLAN Link Modeling
-%
-% This example shows how to create a basic WLAN link model using 
-% WLAN Toolbox(TM). An IEEE(R) 802.11ac(TM) [ <#29 1> ] VHT packet 
-% is created, passed through a TGac channel. The received signal is 
-% equalized and decoded in order to recover the transmitted bits.
+%% WLAN Link modellemesi ve farklı kanal koşulları için performans analizi
+% Projemizde MATLAB WLAN Toolbox kullanarak temel WLAN Link modelinin
+% oluşturulması ve farklı koşullar altında performans analizini
+% gerçekleştirilmesi göstermektedir. Bir IEEE 802.11ac VHT paketi
+% oluşturduğumuz kanal üzerinden iletilir. Ardından alınan sinyal demodüle
+% edilir ve iletilen bitleri geri kazanmak için eşitlenir (equalize) ve
+% kodu çözülür (decode). Bu şekilde basit bir verici-kanal-alıcı
+% simülasyonu gerçekleştirmektedir.
 
-% Copyright 2015-2018 The MathWorks, Inc.
-
-%% Introduction
+%% Giriş
 % This example shows how a simple transmitter-channel-receiver simulation
 % may be created using functions from WLAN Toolbox. A VHT transmit and
 % receive link is implemented as shown in the figure below. A VHT packet is
@@ -31,6 +31,8 @@
 % are recovered. The equalized symbols are decoded to recover the
 % transmitted bits.
 %
+
+
 
 %% Waveform Generation
 % An 802.11ac VHT transmission is simulated in this example. The transmit

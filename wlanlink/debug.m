@@ -14,9 +14,12 @@
 
 %------------------------------- BEGIN CODE -------------------------------
 
+%% END-TO-END simulation
+
 %% Waveform Generation
 % Create a format configuration object for a SISO VHT transmission
-cfgVHT = wlanVHTConfig;
+cfgVHT = wlanVHTConfig;            % Very High Throughput (VHT) designation
+%VisualizeWLAN(cfgVHT);             % Visualize VHT Frame
 cfgVHT.NumTransmitAntennas = 1;    % Transmit antennas
 cfgVHT.NumSpaceTimeStreams = 1;    % Space-time streams
 cfgVHT.APEPLength = 4096;          % APEP length in bytes
@@ -42,6 +45,11 @@ txPSDU = randi([0 1],cfgVHT.PSDULength*8,1); % Generate PSDU data in bits
 data = wlanVHTData(txPSDU,cfgVHT);
 
 txWaveform = [preamble;data]; % Transmit VHT PPDU
+
+%% IEEE 802.11 Standard
+% Standard: 802.11ac
+% Bandwidth (MHz) 20, 40, 80, 160
+% MIMO: Up to 8 spatial streams, MU-MIMO
 
 %% Channel
 % Parameterize the channel
@@ -118,3 +126,10 @@ constellationDiagram(reshape(eqSym,[],1));
 constellationDiagram.Title = 'Equalized Data Symbols';
 
 %------------------------------- END OF CODE ------------------------------
+
+%% Analyze link performance by
+% * Computing packet error rate
+% * Bit error rate
+% * Throughput measures
+% ** Characterize and simulate wireless LAN fading path multichannel
+% EVM & Spectral Emissions
