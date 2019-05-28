@@ -133,3 +133,4 @@ constellationDiagram.Title = 'Equalized Data Symbols';
 % * Throughput measures
 % ** Characterize and simulate wireless LAN fading path multichannel
 % EVM & Spectral Emissions
+% EVM BER PER

@@ -2,11 +2,11 @@
 % WLAN Link Modeling and performance analysis for different channel       %
 % conditions                                                              %
 %                                                                         %
-% Author: Ata Niyazov (185112038), Fehime Yiğit (185112039)               %
+% Author: Ata Niyazov (185112038), Fehime Yiğit (185112037)               %
 %                                                                         %
 % Work address: Kocaeli University                                        %
 % Website: http://bilgisayar.kocaeli.edu.tr/                              %
-% April 2019; Last revision: 04-Mart-2019                                 %
+% April 2019; Last revision: 21-May-2019                                  %
 %                                                                         %
 % Kocaeli University (C) Copyright 2019.                                  %
 % All rights reserved.                                                    %
@@ -14,7 +14,11 @@
 
 %------------------------------- BEGIN CODE -------------------------------
 
+close all; clear all; clc;
+
 %% WLAN Link modellemesi ve farklı kanal koşulları için performans analizi
+
+%% Giriş
 % Projemizde MATLAB WLAN Toolbox kullanarak temel WLAN Link modelinin
 % oluşturulması ve farklı koşullar altında performans analizini
 % gerçekleştirilmesi göstermektedir. Bir IEEE 802.11ac VHT paketi
@@ -23,37 +27,32 @@
 % kodu çözülür (decode). Bu şekilde basit bir verici-kanal-alıcı
 % simülasyonu gerçekleştirmektedir.
 
-%% Giriş
-% This example shows how a simple transmitter-channel-receiver simulation
-% may be created using functions from WLAN Toolbox. A VHT transmit and
-% receive link is implemented as shown in the figure below. A VHT packet is
-% transmitted through a TGac channel, demodulated and the equalized symbols
-% are recovered. The equalized symbols are decoded to recover the
-% transmitted bits.
-%
-
-
-
-%% Waveform Generation
-% An 802.11ac VHT transmission is simulated in this example. The transmit
-% parameters for the VHT format of the 802.11(TM) standard are configured
-% using a VHT configuration object. The <matlab:doc('wlanVHTConfig')
-% wlanVHTConfig> creates a VHT configuration object. In this example the
-% object is configured for a 20 MHz channel bandwidth, MCS 5 and single
-% transmit antenna.
+%% Dalga Biçimi Üretimi (Waveform Generation)
+% Bu örnekte bir 802.11ac VHT aktarımı simüle edilmiştir. 802.11(TM)
+% standardının VHT formatı için aktarım parametreleri, bir VHT
+% konfigürasyon nesnesi kullanılarak konfigüre edilir ve "wlanVHTConfig"
+% VHT yapılandırma nesnesi oluşturur. Bu örnekte, nesne 20 MHz kanal
+% bant genişliği, MCS 5 ve tekli verici anten için yapılandırılmıştır.
 
 % Create a format configuration object for a SISO VHT transmission
-cfgVHT = wlanVHTConfig;
+cfgVHT = wlanVHTConfig;            % Very High Throughput (VHT) designation
 cfgVHT.NumTransmitAntennas = 1;    % Transmit antennas
+%cfgVHT.NumTransmitAntennas = 8;    % 8 transmit antennas
 cfgVHT.NumSpaceTimeStreams = 1;    % Space-time streams
+%cfgVHT.NumSpaceTimeStreams = 8;    % 8 space-time streams
 cfgVHT.APEPLength = 4096;          % APEP length in bytes
+%cfgVHT.APEPLength = 3000;          % APEP length in bytes
+% Modulation and coding scheme (MCS)
 cfgVHT.MCS = 5;                    % Single spatial stream, 64-QAM
-cfgVHT.ChannelBandwidth = 'CBW20'; % Transmitted signal bandwidth
+%cfgVHT.MCS = 9;                    % 256-QAM rate-5/6
+% Channel bandwidth: 'CBW20','CBW40','CBW80','CBW160'
+%cfgVHT.ChannelBandwidth = 'CBW20'; % Transmitted signal bandwidth
+cfgVHT.ChannelBandwidth = 'CBW80'; % 80 MHz channel bandwidth
 Rs = wlanSampleRate(cfgVHT);       % Sampling rate
 
 %%
-% A single VHT packet is generated consisting of training, signal and data
-% fields:
+% Eğitim (training), sinyal (signal) ve veri (data) alanlarından oluşan
+% tek bir VHT paketi üretilir:
 %
 % * Non-HT Short Training Field (L-STF)
 % * Non-HT Long Training Field (L-LTF)
@@ -64,134 +63,146 @@ Rs = wlanSampleRate(cfgVHT);       % Sampling rate
 % * VHT Signal B (VHT-SIG-B) field
 % * Data field
 %
-% These fields are generated separately using functions from WLAN Toolbox
-% and are concatenated to produce a VHT transmit packet.
+% Bu alanlar, WLAN Toolbox fonksiyonları kullanılarak ayrı ayrı
+% üretilir ve bir VHT iletim paketi üretmek için birleştirilir.
 
 %%
-% The first field in the PPDU is the L-STF and is used for the start of
-% packet detection and automatic gain control (AGC) setting. It is also
-% used for initial frequency offset estimation and coarse timing
-% synchronization.  The <matlab:doc('wlanLSTF') wlanLSTF> function
-% generates the L-STF field in the time-domain using some of the parameters
-% included in configuration object |cfgVHT|.
-lstf = wlanLSTF(cfgVHT);  
+% Physical Protocol Data Unit (PPDU) ilk alanı L-STF’dir ve paket algılama
+% (start of packet detection) ve otomatik kazanç kontrolü
+% (AGC - automatic gain control) ayarı için kullanılır. Ayrıca ilk frekans
+% ofset tahmini ve kaba zamanlama senkronizasyonu (time synchronization)
+% için kullanılır. 'wlanLSTF' fonksiyonu, 'cfgVHT' yapılandırma nesnesinin
+% içindeki parametrelerin bazılarını kullanarak zaman alanındaki
+% (time-domain) L-STF alanını oluşturur.
+lstf = wlanLSTF(cfgVHT);
 
 %%
-% The L-LTF is used for fine time synchronization, channel estimation and
-% fine frequency offset estimation. The <matlab:doc('wlanLLTF') wlanLLTF>
-% function generates the L-LTF in the time-domain.
-lltf = wlanLLTF(cfgVHT);  
+% L-LTF ince zaman senkronizasyonu (time synchronization), kanal kestirimi
+% (channel estimation) ve ince frekans kayması kestirimi
+% (frequency offset estimation) için kullanılır. 'wlanLLTF' fonksiyonu,
+% zaman alanında (time-domain) L-LTF'yi oluşturur.
+lltf = wlanLLTF(cfgVHT);
 
 %%
-% The L-SIG field carries packet configuration such as data rate,
-% modulation and code rate for non-HT format. The <matlab:doc('wlanLSIG')
-% wlanLSIG> function generates the L-SIG field in the time-domain.
+% L-SIG alanı, non-HT formatı için veri hızı (data rate), modülasyon
+% ve kod hızı (code rate) gibi paket konfigürasyonunu taşır. 'wlanLSIG'
+% fonksiyonu, zaman alanındaki (time-domain) L-SIG alanını oluşturur.
 lsig = wlanLSIG(cfgVHT);
 
 %%
-% The figure below shows the L-STF, L-LTF and L-SIG fields. These fields
-% are common to the VHT, HT-Mixed and non-HT OFDM transmission formats.
+% L-STF, L-LTF ve L-SIG alanları VHT, HT-karışık (HT-mixed) ve HT-olmayan
+% (non-HT) Orthogonal frequency-division multiplexing (OFDM) iletim
+% biçimleri için ortaktır.
 nonHTfield = [lstf;lltf;lsig]; % Combine the non-HT preamble fields
 
 %%
-%
-% <<BasicWLANlinkModelingNonHTpreamble.png>>
-%
-
-%%
-% The VHT specific signal and training fields are generated after the
-% non-HT preamble fields. The purpose of the VHT-SIG-A field is to provide
-% information to allow the receiver to decode the data payload. The
-% VHT-SIG-A is composed of two symbols VHT-SIG-A1 and VHT-SIG-A2. The
-% <matlab:doc('wlanVHTSIGA') wlanVHTSIGA> function generates the VHT-SIG-A
-% field in the time-domain.
+% VHT için özgü sinyal ve eğitim alanları non-HT giriş alanlarından
+% (preamble fields) sonra üretilir. VHT-SIG-A alanının amacı, alıcının
+% veri yükü (data payload) kodunu çözmesine izin verecek bilgi sağlamaktır.
+% VHT-SIG-A, VHT-SIG-A1 ve VHT-SIG-A2 sembollerinden oluşur. 'wlanVHTSIGA'
+% fonksiyonu, zaman alanındaki (time-domain) VHT-SIG-A alanını oluşturur.
 vhtsiga = wlanVHTSIGA(cfgVHT);
 
 %%
-% The purpose of the VHT-STF is to improve the gain control estimation in a
-% MIMO transmission and help the receiver detect the repeating pattern
-% similar to the L-STF field. The <matlab:doc('wlanVHTSTF') wlanVHTSTF>
-% function generates the VHT-STF field in the time-domain.
+% VHT-STF'nin amacı, bir MIMO aktarımındaki (multiple-input and
+% multiple-output transmission) kazanç kontrolü tahminini (gain control
+% estimation) iyileştirmek ve alıcının L-STF alanına benzer tekrar eden
+% modeli tespit etmesine (detect the repeating pattern) yardımcı olmaktır.
+% 'wlanVHTSTF' fonksiyonu, zaman alanındaki (time-domain) VHT-STF alanını
+% oluşturur.
 vhtstf = wlanVHTSTF(cfgVHT);
 
 %%
-% The VHT-LTF provides a mean for the receiver to estimate the channel
-% between the transmitter and the receiver. Depending on the number of
-% space time streams, it consists of 1,2,4,6 or 8 VHT-LTF symbols. The
-% <matlab:doc('wlanVHTLTF') wlanVHTLTF> function generates the VHT-LTF in
-% the time-domain.
+% VHT-LTF, alıcı için verici ile alıcı arasındaki kanalı tahmin etmesi
+% için bir araç sağlar. Uzay zaman akışlarının sayısına bağlı olarak
+% (number of space time streams), 1,2,4,6 veya 8 VHT-LTF sembolünden
+% oluşur. 'wlanVHTLTF' fonksiyonu, zaman alanındaki (time-domain)
+% VHT-LTF'yi oluşturur.
 vhtltf = wlanVHTLTF(cfgVHT);
 
 %%
-% The VHT-SIG-B field is used to set the data rate and the length of the
-% data field payload of the transmitted packet. The
-% <matlab:doc('wlanVHTSIGB') wlanVHTSIGB> function generates the VHT-SIG-B
-% field in the time-domain.
+% VHT-SIG-B alanı, veri hızını (data rate) ve iletilen paketin veri alanı
+% veri yükünün uzunluğunu (length of the data field payload) ayarlamak
+% için kullanılır. 'wlanVHTSIGB' fonksiyonu, zaman alanındaki (time-domain)
+% VHT-SIG-B alanını oluşturur.
 vhtsigb = wlanVHTSIGB(cfgVHT);
 
 %%
-% Construct the preamble with the generated signal and training fields for
-% the VHT format.
+% Başlangıç (preamble) bölümünü, VHT formatı için oluşturulan sinyal ve
+% eğitim alanlarıyla oluşturun.
 preamble = [lstf;lltf;lsig;vhtsiga;vhtstf;vhtltf;vhtsigb];
+plotVHTWaveform(preamble,cfgVHT,'Beamformed Preamble Wave with Fields Highlighted');
 
 %%
-% The <matlab:doc('wlanVHTData') wlanVHTData> function generates the
-% time-domain VHT data field. The VHT format configuration |cfgVHT|
-% specifies the parameters for generating the data field from the PSDU
-% bits. The |cfgVHT.PSDULength| property gives the number of bytes to be
-% transmitted in the VHT data field. This property is used to generate the
-% random PSDU bits |txPSDU|.
+% 'wlanVHTData' fonksiyonu, zaman alanında (time-domain) VHT veri alanını
+% oluşturur. VHT formatı yapılandırması 'cfgVHT', veri alanını
+% Physical Layer Convergence Procedure (PLCP) Service Data Unit (PSDU)
+% bitlerinden üretmek için parametreleri belirtir. 'CfgVHT.PSDULength'
+% özelliği, VHT veri alanında iletilecek bayt sayısını verir. Bu özellik,
+% rasgele PSDU bit 'txPSDU' bit üretmek için kullanılır.
 
 rng(0) % Initialize the random number generator
 txPSDU = randi([0 1],cfgVHT.PSDULength*8,1); % Generate PSDU data in bits
 data = wlanVHTData(txPSDU,cfgVHT);
 
-% A VHT waveform is constructed by prepending the non-HT and VHT
-% preamble fields with data
+% non-HT ve VHT başlangıç alanlarının (preamble) ardından veri alanını
+% (data field) ekleyerek bir VHT dalga formu oluşturulur.
 txWaveform = [preamble;data]; % Transmit VHT PPDU
 
-%%
-% Alternatively the waveform for a given format configuration can also be
-% generated using a single function call
-% <matlab:doc('wlanWaveformGenerator') wlanWaveformGenerator> function.
-% This function can produce one or more VHT packets. By default OFDM
-% windowing is applied to the generated waveform. For more information on
-% OFDM windowing, see 
-% <matlab:doc('wlanWaveformGenerator') wlanWaveformGenerator>
-% documentation.
+%% VHT dalga biçimini alanları renklendirmiş olarak görüntüler
+plotVHTWaveform(txWaveform,cfgVHT,'Beamformed TX Wave with Fields Highlighted');
 
-%% Channel Impairments
-% This section simulates the effects of over-the-air transmission. The
-% transmitted signal is impaired by the channel and AWGN. The level of the
-% AWGN is given in dBs. In this example the TGac channel model [ <#29 2> ]
-% is used with delay profile Model-B. For this delay profile when the
-% distance between transmitter and receiver is greater than or equal to 5
-% meters, the model is in Non-Line-of-Sight (N-LOS) configuration. This is
-% described further in the help for <matlab:doc('wlanTGacChannel')
-% wlanTGacChannel>.
+%%
+% Alternatif olarak, belirli bir format yapılandırması için dalga formu,
+% tek bir fonksiyon çağrısı 'wlanWaveformGenerator' fonksiyonu kullanılarak
+% da oluşturulabilir. Bu işlev bir veya daha fazla VHT paketi üretebilir.
+% Varsayılan olarak OFDM pencereleme (OFDM windowing) oluşturulan dalga
+% formuna (waveform) uygulanır. OFDM pencerelemesi hakkında daha fazla
+% bilgi için 'wlanWaveformGenerator' belgelerine bakın.
+
+%% Kanal bozuklukları (Channel Impairments)
+% Bu bölüm kablosuz iletimin (over-the-air) etkilerini simüle eder.
+% İletilen sinyal, kanal ve Additive white Gaussian noise (AWGN)
+% tarafından bozulmuştur. AWGN'nin seviyesi dBs cinsinden verilmiştir.
+% Bu örnekte, TGac kanal modeli, Model-B gecikme profili ile
+% kullanılmıştır. Verici ve alıcı arasındaki mesafe 5 metreye eşit veya
+% daha büyük olduğunda bu gecikme profili için, model Non-Line-of-Sight
+% (N-LOS) konfigürasyonundadır. 'wlanTGacChannel' yardımında daha ayrıntılı
+% olarak açıklanmaktadır.
 
 % Parameterize the channel
 tgacChannel = wlanTGacChannel;
-tgacChannel.DelayProfile = 'Model-B';
+%tgacChannel.DelayProfile = 'Model-B';
+tgacChannel.DelayProfile = 'Model-D';
 tgacChannel.NumTransmitAntennas = cfgVHT.NumTransmitAntennas;
 tgacChannel.NumReceiveAntennas = 1;
+%tgacChannel.NumReceiveAntennas = 8;
 tgacChannel.LargeScaleFadingEffect = 'None';
-tgacChannel.ChannelBandwidth = 'CBW20';
-tgacChannel.TransmitReceiveDistance = 5;
+%tgacChannel.ChannelBandwidth = 'CBW20';
+tgacChannel.ChannelBandwidth = cfgVHT.ChannelBandwidth;
+% Distance between the transmitter and receiver in meters, specified as
+% a real positive scalar.
+%tgacChannel.TransmitReceiveDistance = 5;
+tgacChannel.TransmitReceiveDistance = 10; % Distance in meters for NLOS
 tgacChannel.SampleRate = Rs;
 tgacChannel.RandomStream = 'mt19937ar with seed';
 tgacChannel.Seed = 10;
+% Large-scale fading effects applied in the channel, specified as
+% 'None', 'Pathloss', 'Shadowing', or 'Pathloss and shadowing'.
+tgacChannel.LargeScaleFadingEffect = 'None';
+%tgacChannel.LargeScaleFadingEffect = 'Pathloss';
 
-% Pass signal through the channel. Append zeroes to compensate for channel
-% filter delay
+% Sinyal kanaldan geçirilir. Kanal filtresi gecikmesini telafi etmek için
+% elimizdeki dalga formunun (waveform) ardına sıfır eklenir.
 txWaveform = [txWaveform;zeros(10,1)];
 chanOut = tgacChannel(txWaveform);
 
-snr = 40; % In dBs
+snr = 30; % In dBs
 rxWaveform = awgn(chanOut,snr,0);
 
-% Display the spectrum of the transmitted and received signals. The
-% received signal spectrum is affected by the channel
+%%
+% Alınan sinyal spektrumu kanaldan etkilenir. İletilen ve alınan
+% sinyallerin spektrumunu görüntülemek için:
 spectrumAnalyzer  = dsp.SpectrumAnalyzer('SampleRate',Rs, ...
             'ShowLegend',true, ...
             'Window', 'Rectangular', ...
@@ -200,47 +211,225 @@ spectrumAnalyzer  = dsp.SpectrumAnalyzer('SampleRate',Rs, ...
             'ChannelNames',{'Transmitted waveform','Received waveform'});
 spectrumAnalyzer([txWaveform rxWaveform]);
 
-%% Channel Estimation and Equalization
-% In this section the time-domain VHT-LTF is extracted from the received
-% waveform. The waveform is assumed to be synchronized to the start of the
-% packet by taking the channel filter delay into account. The VHT-LTF is
-% demodulated and is used to estimate the channel. The received signal is
-% then equalized using the channel estimate obtained from the VHT-LTF.
+%% Kanal Tahmini ve Denkleştirme (Channel Estimation and Equalization)
+% Bu bölümde, zaman alanı (time-domain) VHT-LTF, alınan dalga formundan
+% (received waveform) çıkarılır. Dalga formunun, kanal filtre gecikmesi
+% hesaba katılarak paketin başlangıcına senkronize edildiği
+% varsayılmaktadır. VHT-LTF demodüle edilir ve kanalı tahmin etmek için
+% kullanılır. Alınan sinyal daha sonra VHT-LTF'den elde edilen kanal
+% tahmini (channel estimate) kullanılarak eşitlenir (equalize).
+
+%% TGac kanalı için 802.11ac Paket Hata Oranı(Packet Error Rate) simulasyonu
+%% Simülasyon Parametreleri
+% Vektördeki her SNR noktası için, bir paket sayısı üretilir, bir kanaldan
+% geçirilir ve paket hata oranını belirlemek için demodüle edilir.
+
+snrarr = 0:10:40;
 
 %%
-% In this example the received signal is synchronized to the start of the
-% packet by compensating for a known channel filter delay. For more
-% information on how to automatically detect and synchronize to the
-% received signal see the following examples:
+% Her bir SNR noktasında test edilen paketlerin sayısı iki parametre
+% tarafından kontrol edilir:
 %
-% * <HTMIMOPacketErrorRateExample.html
-% 802.11n Packet Error Rate Simulation for 2x2 TGn Channel>
-% * <VHTMIMOPacketErrorRateExample.html
-% 802.11ac Packet Error Rate Simulation for 8x8 TGac Channel>
+% 'maxNumErrors' Her SNR noktasında simüle edilen maksimum paket hatası
+% sayısıdır. Paket hatalarının sayısı bu sınıra ulaştığında, bu SNR
+% noktasındaki simülasyon tamamlanmıştır.
+%
+% 'maxNumPackets' Her SNR noktasında simüle edilmiş maksimum paket
+% sayısıdır ve paket hata limitine ulaşılmazsa simülasyon uzunluğunu sınırlar.
+%
+% Bu örnekte seçilen sayılar çok kısa bir simülasyona için yapılmıştır.
+% Anlamlı sonuçlar için sayıları artırmanızı öneririz.
+
+maxNumErrors = 10;   % The maximum number of packet errors at an SNR point
+maxNumPackets = 100; % Maximum number of packets at an SNR point
+
+%%
+% Set the remaining variables for the simulation.
+
+% Get the baseband sampling rate
+%fs = wlanSampleRate(cfgVHT);
+
+% Get the number of occupied subcarriers in VHT fields and FFT length
+[vhtData,vhtPilots] = helperSubcarrierIndices(cfgVHT,'VHT');
+Nst_vht = numel(vhtData)+numel(vhtPilots);
+Nfft = helperFFTLength(cfgVHT);     % FFT length
+
+% Set the sampling rate of the channel
+%tgacChannel.SampleRate = fs;
+
+% Indices for accessing each field within the time-domain packet
+ind = wlanFieldIndices(cfgVHT);
+
+%% SNR Noktalarını İşleme
+% Her bir SNR noktası için birkaç paket test edilir ve paket hata oranı
+% hesaplanır.
+%
+% Her paket için aşağıdaki işlem adımları gerçekleşir:
+%
+% # Tek bir paket dalga formu oluşturmak için bir PSDU oluşturulur
+% ve kodlanır.
+% # Dalga biçimi, TGac kanal modelinin farklı bir gerçekleştirmesinden
+% geçer.
+% # AWGN is added to the received waveform to create the desired average
+% SNR per subcarrier after OFDM demodulation.
+% # OFDM demodülasyonundan sonra alt taşıyıcı başına istenen ortalama
+% SNR'yi oluşturmak için AWGN alınan dalga formuna eklenir.
+% 'comm.AWGNChannel' doğru SNR sağlayacak şekilde yapılandırılmış.
+% Yapılandırma, kanal içindeki normalizasyon için alıcı anten sayısı ve
+% kullanılmayan alt taşıyıcılardaki OFDM demodülasyonu sırasında kaldırılan
+% gürültü enerjisi ile ilgilidir.
+% # Paket algılanır.
+% # Kaba taşıyıcı frekans kayması tahmin edilir ve düzeltilir.
+% # Hassas zamanlama senkronizasyonu yapıldı. L-STF, L-LTF ve L-SIG
+% örnekleri, L-STF'nin başlangıcında veya sonunda paket saptamaya izin
+% vermek için ince zamanlama için sağlanmıştır.
+% # İnce taşıyıcı frekans kayması tahmin edildi ve düzeltildi.
+% # VHT-LTF, senkronize edilmiş alınan dalga formundan çıkarılır.
+% VHT-LTF, OFDM'nin demodüle edilmiş ve kanal kestirimi gerçekleştirilmiştir.
+% # VHT Veri alanı, senkronize edilmiş alınan dalga formundan çıkarılır.
+% PSDU, çıkartılan alan ve kanal tahmini kullanılarak kurtarılır.
+% 
+% SNR noktalarının işlenmesini paralelleştirmek için bir 'parfor' döngüsü
+% kullanılabilir, bu nedenle her SNR noktası için bir AWGN kanalı
+% oluşturulur ve 'comm.AWGNChannel' ile yapılandırılır. Paralel
+% hesaplamanın artan hızda kullanılmasını sağlamak için 'for' ifadesine
+% yorum yapın ve aşağıdaki 'parfor' ifadesini yorumdan çıkarın.
+
+S = numel(snrarr);
+packetErrorRate = zeros(S,1);
+%parfor i = 1:S % Use 'parfor' to speed up the simulation
+for i = 1:S     % Use 'for' to debug the simulation
+    % Set random substream index per iteration to ensure that each
+    % iteration uses a repeatable set of random numbers
+    stream = RandStream('combRecursive','Seed',0);
+    stream.Substream = i;
+    RandStream.setGlobalStream(stream);
+    
+    % Create an instance of the AWGN channel per SNR point simulated
+    awgnChannel = comm.AWGNChannel;
+    awgnChannel.NoiseMethod = 'Signal to noise ratio (SNR)';
+    % Normalization
+    awgnChannel.SignalPower = 1/tgacChannel.NumReceiveAntennas; 
+    % Account for energy in nulls
+    awgnChannel.SNR = snrarr(i)-10*log10(Nfft/Nst_vht); 
+
+    % Loop to simulate multiple packets
+    numPacketErrors = 0;
+    numPkt = 1; % Index of packet transmitted
+    while numPacketErrors<=maxNumErrors && numPkt<=maxNumPackets
+        % Generate a packet waveform
+        txPSDU = randi([0 1],cfgVHT.PSDULength*8,1); % PSDULength in bytes
+        tx = wlanWaveformGenerator(txPSDU,cfgVHT);
+        
+        % Add trailing zeros to allow for channel delay
+        tx = [tx; zeros(50,cfgVHT.NumTransmitAntennas)]; %#ok<AGROW>
+
+        % Pass the waveform through the fading channel model
+        reset(tgacChannel); % Reset channel for different realization
+        rx = tgacChannel(tx);
+
+        % Add noise
+        rx = awgnChannel(rx);
+
+        % Packet detect and determine coarse packet offset
+        coarsePktOffset = wlanPacketDetect(rx,cfgVHT.ChannelBandwidth);
+        if isempty(coarsePktOffset) % If empty no L-STF detected; packet error
+            numPacketErrors = numPacketErrors+1;
+            numPkt = numPkt+1;
+            continue; % Go to next loop iteration
+        end
+        
+        % Extract L-STF and perform coarse frequency offset correction
+        lstf = rx(coarsePktOffset+(ind.LSTF(1):ind.LSTF(2)),:); 
+        coarseFreqOff = wlanCoarseCFOEstimate(lstf,cfgVHT.ChannelBandwidth);
+        rx = helperFrequencyOffset(rx,Rs,-coarseFreqOff);
+        
+        % Extract the non-HT fields and determine fine packet offset
+        nonhtfields = rx(coarsePktOffset+(ind.LSTF(1):ind.LSIG(2)),:); 
+        finePktOffset = wlanSymbolTimingEstimate(nonhtfields,...
+                    cfgVHT.ChannelBandwidth);
+        
+        % Determine final packet offset
+        pktOffset = coarsePktOffset+finePktOffset;
+        
+        % If packet detected outwith the range of expected delays from the
+        % channel modeling; packet error
+        if pktOffset>50
+            numPacketErrors = numPacketErrors+1;
+            numPkt = numPkt+1;
+            continue; % Go to next loop iteration
+        end
+
+        % Extract L-LTF and perform fine frequency offset correction
+        lltf = rx(pktOffset+(ind.LLTF(1):ind.LLTF(2)),:); 
+        fineFreqOff = wlanFineCFOEstimate(lltf,cfgVHT.ChannelBandwidth);
+        rx = helperFrequencyOffset(rx,Rs,-fineFreqOff);
+        
+        % Extract VHT-LTF samples from the waveform, demodulate and perform
+        % channel estimation
+        vhtltf = rx(pktOffset+(ind.VHTLTF(1):ind.VHTLTF(2)),:);
+        vhtltfDemod = wlanVHTLTFDemodulate(vhtltf,cfgVHT);
+        
+        % Get single stream channel estimate
+        chanEstSSPilots = vhtSingleStreamChannelEstimate(vhtltfDemod,cfgVHT);
+        
+        % Channel estimate
+        chanEst = wlanVHTLTFChannelEstimate(vhtltfDemod,cfgVHT);
+        
+        % Extract VHT Data samples from the waveform
+        vhtdata = rx(pktOffset+(ind.VHTData(1):ind.VHTData(2)),:);
+        
+        % Estimate the noise power in VHT data field
+        nVarVHT = vhtNoiseEstimate(vhtdata,chanEstSSPilots,cfgVHT);
+        
+        % Recover the transmitted PSDU in VHT Data
+        rxPSDU = wlanVHTDataRecover(vhtdata,chanEst,nVarVHT,cfgVHT);
+        
+        % Determine if any bits are in error, i.e. a packet error
+        packetError = any(biterr(txPSDU,rxPSDU));
+        numPacketErrors = numPacketErrors+packetError;
+        numPkt = numPkt+1;
+    end
+
+    % Calculate packet error rate (PER) at SNR point
+    packetErrorRate(i) = numPacketErrors/(numPkt-1);
+    disp(['SNR ' num2str(snrarr(i)) ' completed after ' ...
+        num2str(numPkt-1) ' packets, PER: ' ... 
+        num2str(packetErrorRate(i))]);
+end
+
+%% Plot Packet Error Rate vs SNR Results
+
+figure
+semilogy(snrarr,packetErrorRate,'-ob');
+grid on;
+xlabel('SNR (dB)');
+ylabel('PER');
+title('802.11ac 80MHz, MCS9, Direct Mapping, Channel Model D-NLOS');
 
 %% 
-
+% Bu örnekte, alınan sinyal bilinen bir kanal filtre gecikmesini telafi
+% ederek paketin başlangıcına senkronize edilir.
 chInfo = info(tgacChannel); % Get characteristic information
 % Channel filter delay, measured in samples 
 chDelay  = chInfo.ChannelFilterDelay;
 rxWaveform = rxWaveform(chDelay+1:end,:);
 
 %%
-% After synchronization the receiver has to extract the relevant fields
-% from the received packet. The <matlab:doc('wlanFieldIndices')
-% wlanFieldIndices> function is used to return the start and end
-% time-domain sample indices of all fields relative to the first sample in
-% a packet. These indices are used to extract the required fields for
-% further processing.
+% Senkronizasyondan sonra, alıcının ilgili alanları alınan paketten
+% çıkarması gerekir. 'wlanFieldIndices' fonksiyonu, bir paketteki ilk örneğe
+% göre tüm alanların başlangıç ve bitiş zamanı etki alanı (time-domain)
+% örnek dizinlerini döndürmek için kullanılır. Bu endeksler daha sonraki
+% işlemler için gerekli alanları çıkarmak için kullanılır.
 indField = wlanFieldIndices(cfgVHT);
 
 %%
-% An estimate of the noise power after OFDM demodulation is required to
-% perform MMSE equalization on the received OFDM symbols. In this example
-% the noise power in the VHT fields is estimated using the demodulated
-% L-LTF symbols.The L-LTF is extracted from the received waveform and is
-% demodulated using the <matlab:doc('wlanLLTFDemodulate')
-% wlanLLTFDemodulate> function.
+% Alınan OFDM sembollerinde Min Mean Square Error (MMSE) eşitlemesi yapmak
+% için OFDM demodülasyonundan sonra gürültü gücünün bir tahmini gereklidir.
+% Bu örnekte, VHT alanlarındaki gürültü gücü demodüle edilmiş L-LTF
+% sembolleri kullanılarak tahmin edilir. L-LTF, alınan dalga formundan
+% çıkarılır ve 'wlanLLTFDemodulate' fonksiyonu kullanılarak
+% demodüle edilir.
 indLLTF = indField.LLTF(1):indField.LLTF(2);
 demodLLTF = wlanLLTFDemodulate(rxWaveform(indLLTF),cfgVHT);
 % Estimate noise power in VHT fields
@@ -248,29 +437,30 @@ nVar = helperNoiseEstimate(demodLLTF,cfgVHT.ChannelBandwidth, ...
     cfgVHT.NumSpaceTimeStreams);
 
 %%
-% To extract the VHT-LTF from the received signal the start and end indices
-% are used to generate a vector of indices.
+% VHT-LTF'yi alınan sinyalden çıkarmak için başlangıç ve bitiş indeksleri
+% bir indeks vektörü oluşturmak için kullanılır.
 indVHTLTF = indField.VHTLTF(1):indField.VHTLTF(2);
 
 %%
-% The VHT-LTF is used to estimate the channel between all space-time
-% streams and receive antennas. The VHT-LTF is extracted from the received
-% waveform and is demodulated using the <matlab:doc('wlanVHTLTFDemodulate')
-% wlanVHTLTFDemodulate> function.
+% VHT-LTF, antenden alınan tüm uzay-zaman akışları (space-time streams)
+% arasındaki kanalı tahmin etmek için kullanılır. VHT-LTF, alınan dalga
+% formundan çıkarılır ve 'wlanVHTLTFDemodulate' fonksiyonu kullanılarak
+% demodüle edilir.
 demodVHTLTF = wlanVHTLTFDemodulate(rxWaveform(indVHTLTF,:),cfgVHT);
 
 %%
-% The channel estimate includes the effect of the applied spatial mapping
-% and cyclic shifts at the transmitter for a multi antenna configuration.
-% The <matlab:doc('wlanVHTLTFChannelEstimate') wlanVHTLTFChannelEstimate>
-% function returns the estimated channel between all space-time streams and
-% receive antennas.
+% Kanal tahmini, uygulanan uzaysal haritalamanın ve vericideki çoklu anten
+% yapılandırması için döngüsel kaymaların etkisini içerir.
+% 'wlanVHTLTFChannelEstimate' fonksiyonu, antenlerden alınan tüm
+% uzay-zaman yayınları (space-time streams) arasındaki tahmini kanalı
+% döndürür.
 chanEstVHTLTF = wlanVHTLTFChannelEstimate(demodVHTLTF,cfgVHT);
 
 %%
-% The transmit signal encounters a deep fade as shown in the channel
-% frequency response in the figure below. The effect of channel fades can
-% also be seen in the spectrum plot shown previously.
+% İletim sinyali, aşağıdaki şekilde kanal frekans tepkisinde gösterildiği
+% gibi derin bir solma (deep fade) ile karşılaşır. Kanal solmalarının
+% etkisi, daha önce gösterilen spektrum çiziminde (spectrum plot) de
+% görülebilir.
 figure
 plot(20*log10(abs(chanEstVHTLTF)));
 grid on;
@@ -279,23 +469,26 @@ xlabel('Subcarrier index');
 ylabel('Power (dB)');
 
 %%
-% To extract the data field from the received signal the start and end
-% indices for the data field are used to generate a vector of indices.
+% Veri alanını (data field) alınan sinyalden çıkarmak için, veri alanının
+% başlangıç ve bitiş indeksleri bir indeks vektörü oluşturmak için
+% kullanılır.
 indData = indField.VHTData(1):indField.VHTData(2);
 
-% Recover the bits and equalized symbols in the VHT Data field using the
-% channel estimates from VHT-LTF
+% VHT-LTF'den kanal tahminlerini (channel estimates) kullanarak bitleri
+% ve VHT Veri alanındaki eşitlenmiş sembolleri (equalized symbols) kurtarın
 [rxPSDU,~,eqSym] = wlanVHTDataRecover(rxWaveform(indData,:), ...
                     chanEstVHTLTF,nVar,cfgVHT);
         
-% Compare transmit and receive PSDU bits       
-numErr = biterr(txPSDU,rxPSDU);     
+% Verileri karşılaştırın ve PSDU bitlerini alarak, bit hata sayısı
+% hesaplanır
+disp('Number of Errors:');
+numErr = biterr(txPSDU,rxPSDU)
 
-%% 
-% The following plot shows the constellation of the equalized symbols at
-% the output of the <matlab:doc('wlanVHTDataRecover') wlanVHTDataRecover>
-% function compared against the reference constellation. Increasing the
-% channel noise should begin to spread the distinct constellation points.
+%%
+% Aşağıdaki grafik referans zayıflama (constellation) ile
+% karşılaştırıldığında 'wlanVHTDataRecover' fonksiyonunun çıkışındaki
+% eşitlenmiş sembollerin zayıflamasını göstermektedir. Kanal gürültüsünü
+% arttırmak farklı zayıflama noktalarını yaymaya başlamalıdır.
 
 % Plot equalized symbols
 constellationDiagram = comm.ConstellationDiagram;
@@ -305,13 +498,18 @@ constellationDiagram.ReferenceConstellation = ...
 constellationDiagram(reshape(eqSym,[],1));      
 constellationDiagram.Title = 'Equalized Data Symbols';
 
+%% Analyze link performance by
+% * Computing packet error rate (PER)
+% * Bit error rate (BER)
+% * Throughput measures
+
 %% Appendix
 % This example uses the following helper functions:
 %
 % * <matlab:edit('helperReferenceSymbols.m') helperReferenceSymbols.m>
 % * <matlab:edit('helperNoiseEstimate.m') helperNoiseEstimate.m>
 
-%% Selected Bibliography
+%% Referanslar
 % # IEEE Std 802.11ac(TM)-2013 IEEE Standard for Information technology -
 % Telecommunications and information exchange between systems - Local and
 % metropolitan area networks - Specific requirements - Part 11: Wireless
@@ -320,7 +518,5 @@ constellationDiagram.Title = 'Equalized Data Symbols';
 % below 6 GHz.
 % # Breit, G., H. Sampath, S. Vermani, et al. TGac Channel Model Addendum.
 % Version 12. IEEE 802.11-09/0308r12, March 2010.
-
-%displayEndOfDemoMessage(mfilename)
 
 %------------------------------ END OF CODE -------------------------------
